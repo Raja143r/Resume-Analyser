@@ -8,66 +8,42 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 
 
-# APPLICATION CONFIGURATION & THEMING
+# DESIGN SYSTEM & THEME PALETTE
+
+BG_CANVAS = "#f8fafc"
+BG_SIDEBAR = "#0f172a"
+BG_CARD = "#ffffff"
+TEXT_MAIN = "#0f172a"
+TEXT_MUTED = "#64748b"
+BORDER_LIGHT = "#e2e8f0"
+
+# Accents
+PRIMARY_VIOLET = "#6366f1"
+PRIMARY_HOVER = "#4f46e5"
+EMERALD_SUCCESS = "#10b981"
+ROSE_DANGER = "#f43f5e"
+AMBER_TAG = "#f59e0b"
+TAG_BG = "#e0e7ff"
 
 
-APP_TITLE = "Resume Screening System"
-APP_WIDTH = 1200
-APP_HEIGHT = 800
-
-# Dark Modern Palette
-BG_DARK = "#0f172a"          
-CARD_BG = "#1e293b"         
-CARD_BORDER = "#334155"      
-TEXT_MAIN = "#f8fafc"        
-TEXT_MUTED = "#94a3b8"       
-ACCENT_BLUE = "#38bdf8"      
-ACCENT_GREEN = "#22c55e"     
-ACCENT_PURPLE = "#a855f7"    
-ACCENT_RED = "#ef4444"      
-INPUT_BG = "#0f172a"        
-
-
-
-# BUILT-IN SKILL DATABASE
-
+# SKILL DATABASE & PRESETS
 
 SKILLS = {
-    # Programming
+    # Languages
     "python", "java", "javascript", "typescript", "c", "c++", "c#", 
     "php", "ruby", "go", "rust", "kotlin", "swift",
-
-    # Web
-    "html", "css", "react", "angular", "vue", "node.js", "node", 
-    "express", "django", "flask", "fastapi", "spring", ".net",
-
-    # Database
-    "sql", "mysql", "postgresql", "postgres", "mongodb", "sqlite", 
-    "oracle", "redis",
-
-    # Cloud / DevOps
-    "aws", "azure", "gcp", "docker", "kubernetes", "jenkins", 
-    "linux", "git", "github", "gitlab", "devops",
-
-    # Data
-    "pandas", "numpy", "matplotlib", "seaborn", "tableau", "power bi", 
-    "excel", "data analysis", "data science", "machine learning",
-
-    # APIs / Architecture
-    "rest", "rest api", "graphql", "microservices",
-
-    # Soft skills
-    "communication", "leadership", "teamwork", "problem solving", 
-    "time management", "project management", "presentation", "critical thinking",
-
-    # General
-    "testing", "debugging", "agile", "scrum", "jira"
+    # Frameworks & Libraries
+    "react", "angular", "vue", "node.js", "express", "django", "flask", 
+    "fastapi", "spring", ".net", "pandas", "numpy", "matplotlib",
+    # Databases & Storage
+    "sql", "mysql", "postgresql", "postgres", "mongodb", "sqlite", "oracle", "redis",
+    # Cloud & Infrastructure
+    "aws", "azure", "gcp", "docker", "kubernetes", "jenkins", "linux", "git", "github", "devops",
+    # Analytics & Tools
+    "tableau", "power bi", "excel", "data analysis", "data science", "machine learning",
+    # Architecture & Agile
+    "rest", "rest api", "graphql", "microservices", "agile", "scrum", "jira", "testing"
 }
-
-
-
-# STOP WORDS
-
 
 STOP_WORDS = {
     "a", "an", "the", "and", "or", "but", "if", "then", "than", "with", 
@@ -76,610 +52,432 @@ STOP_WORDS = {
     "it", "its", "their", "they", "them", "you", "your", "we", "our", 
     "will", "can", "should", "must", "may", "have", "has", "had", "using", 
     "used", "use", "work", "working", "worked", "experience", "role", 
-    "job", "candidate", "company", "organization", "position", 
-    "responsibilities", "requirements", "skills", "required", 
-    "preferred", "ability"
+    "job", "candidate", "company", "organization", "position"
+}
+
+ROLE_PRESETS = {
+    "🐍 Full Stack Python Dev": "Looking for a Python Developer experienced with Django, React, REST APIs, PostgreSQL, and Docker. Experience with Git, Linux, and AWS required.",
+    "📊 Data Science Lead": "Seeking Data Scientist proficient in Python, SQL, Pandas, NumPy, Machine Learning, and Tableau. Strong problem solving and communication skills.",
+    "⚡ Cloud DevOps Engineer": "Hiring DevOps Specialist skilled in Docker, Kubernetes, AWS, Jenkins, Linux, Terraform, Microservices, and CI/CD pipelines."
 }
 
 
 
-# TEXT UTILITIES & ANALYSIS ENGINE
+# PARSING ENGINE (Standard Library)
 
 
 def normalize_text(text):
-    text = text.lower()
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-
-def tokenize(text):
-    text = text.lower()
-    words = re.findall(r"[a-zA-Z0-9+#.-]+", text)
-    return words
-
-
-def get_frequency(text):
-    words = tokenize(text)
-    filtered = [
-        word for word in words 
-        if word not in STOP_WORDS and len(word) >= 3
-    ]
-    return Counter(filtered)
-
+    return re.sub(r"\s+", " ", text.lower()).strip()
 
 def detect_skills(text):
     normalized = normalize_text(text)
     found = []
-
     for skill in SKILLS:
-        skill_lower = skill.lower()
-        escaped_skill = re.escape(skill_lower)
-        pattern = r"(?<![a-zA-Z0-9])" + escaped_skill + r"(?![a-zA-Z0-9])"
+        escaped = re.escape(skill.lower())
+        pattern = r"(?<![a-zA-Z0-9])" + escaped + r"(?![a-zA-Z0-9])"
         if re.search(pattern, normalized):
             found.append(skill)
-
     return sorted(set(found))
 
-
-def extract_keywords(text, limit=30):
-    frequency = get_frequency(text)
-    return [word for word, count in frequency.most_common(limit)]
-
-
-def extract_docx_text(filename):
+def extract_docx_text_bytes(data):
     try:
-        with zipfile.ZipFile(filename, "r") as document:
-            xml_data = document.read("word/document.xml")
-
+        import io
+        with zipfile.ZipFile(io.BytesIO(data), "r") as doc:
+            xml_data = doc.read("word/document.xml")
         root = ET.fromstring(xml_data)
-        namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
         paragraphs = []
-
-        for paragraph in root.findall(".//w:p", namespace):
-            words = []
-            for text_node in paragraph.findall(".//w:t", namespace):
-                if text_node.text:
-                    words.append(text_node.text)
+        for p in root.findall(".//w:p", ns):
+            words = [t.text for t in p.findall(".//w:t", ns) if t.text]
             if words:
                 paragraphs.append("".join(words))
-
         return "\n".join(paragraphs)
+    except Exception as e:
+        return f"ERROR: {e}"
 
-    except Exception as error:
-        return f"ERROR: Could not read DOCX file.\n{error}"
-
-
-def extract_pdf_text(filename):
+def extract_pdf_text_bytes(data):
     try:
-        with open(filename, "rb") as file:
-            data = file.read()
-
         text = data.decode("latin-1", errors="ignore")
         matches = re.findall(r"\((.*?)\)", text, flags=re.DOTALL)
         extracted = []
-
         for item in matches:
-            item = item.replace(r"\)", ")").replace(r"\(", "(").replace(r"\n", "\n")
-            cleaned = item.strip()
+            cleaned = item.replace(r"\)", ")").replace(r"\(", "(").replace(r"\n", "\n").strip()
             if len(cleaned) > 1 and re.search(r"[a-zA-Z0-9]", cleaned):
                 extracted.append(cleaned)
-
         return " ".join(extracted)
+    except Exception as e:
+        return f"ERROR: {e}"
 
-    except Exception as error:
-        return f"ERROR: Could not read PDF file.\n{error}"
-
-
-def read_file(filename):
-    extension = os.path.splitext(filename)[1].lower()
-
-    if extension == ".txt":
-        try:
-            with open(filename, "r", encoding="utf-8", errors="ignore") as file:
-                return file.read()
-        except Exception as error:
-            return str(error)
-
-    if extension == ".docx":
-        return extract_docx_text(filename)
-
-    if extension == ".pdf":
-        return extract_pdf_text(filename)
-
-    return f"Unsupported file type: {extension}"
-
-
-def detect_email(text):
-    pattern = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-    return re.findall(pattern, text)
-
-
-def detect_phone(text):
-    pattern = r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"
-    return re.findall(pattern, text)
-
-
-def calculate_match(jd_text, resume_text):
-    jd_skills = set(detect_skills(jd_text))
-    resume_skills = set(detect_skills(resume_text))
-
-    matched_skills = jd_skills & resume_skills
-    missing_skills = jd_skills - resume_skills
-
-    jd_keywords = set(extract_keywords(jd_text, 30))
-    resume_keywords = set(extract_keywords(resume_text, 50))
-
-    matched_keywords = jd_keywords & resume_keywords
-    missing_keywords = jd_keywords - resume_keywords
-
-    skill_score = (len(matched_skills) / len(jd_skills) * 60) if jd_skills else 0
-    keyword_score = (len(matched_keywords) / len(jd_keywords) * 25) if jd_keywords else 0
-
-    contact_score = 0
-    if detect_email(resume_text):
-        contact_score += 3
-    if detect_phone(resume_text):
-        contact_score += 2
-
-    content_score = 0
-    if len(resume_text) > 500:
-        content_score += 5
-    if len(resume_text) > 1000:
-        content_score += 5
-
-    total_score = min(100, round(skill_score + keyword_score + contact_score + content_score))
-
-    if total_score >= 80:
-        level = "Excellent Match"
-    elif total_score >= 65:
-        level = "Good Match"
-    elif total_score >= 50:
-        level = "Moderate Match"
-    else:
-        level = "Low Match"
-
-    return {
-        "score": total_score,
-        "level": level,
-        "jd_skills": sorted(jd_skills),
-        "resume_skills": sorted(resume_skills),
-        "matched_skills": sorted(matched_skills),
-        "missing_skills": sorted(missing_skills),
-        "matched_keywords": sorted(matched_keywords),
-        "missing_keywords": sorted(missing_keywords),
-    }
-
-
-def generate_recommendations(result):
-    recommendations = []
-
-    if result["missing_skills"]:
-        recommendations.append(
-            f"Candidate missing {len(result['missing_skills'])} key skill(s): "
-            + ", ".join(result["missing_skills"][:4])
-        )
-
-    if len(result["matched_skills"]) >= 5:
-        recommendations.append("Strong technical skill alignment demonstrated.")
-
-    if result["score"] < 50:
-        recommendations.append("Low overall alignment with job requirements.")
-    elif result["score"] < 70:
-        recommendations.append("Moderate alignment - manual review suggested.")
-    else:
-        recommendations.append("High match profile for shortlist consideration.")
-
-    return recommendations
+def parse_bytes(filename, content_bytes):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext == ".txt":
+        return content_bytes.decode("utf-8", errors="ignore")
+    elif ext == ".docx":
+        return extract_docx_text_bytes(content_bytes)
+    elif ext == ".pdf":
+        return extract_pdf_text_bytes(content_bytes)
+    return ""
 
 
 
-# MODERN GUI CLASS
+# REDESIGNED MODERN GUI
 
 
-class ResumeAnalyzerApp:
+class ModernScreeningApp:
 
     def __init__(self, root):
         self.root = root
-        self.root.title(APP_TITLE)
-        self.root.geometry(f"{APP_WIDTH}x{APP_HEIGHT}")
-        self.root.configure(bg=BG_DARK)
+        self.root.title("TalentScreen Pro — AI-Free Candidate Evaluator")
+        self.root.geometry("1300x850")
+        self.root.configure(bg=BG_CANVAS)
 
-        self.jd_text = ""
-        self.resume_files = []
+        self.loaded_files = {}  # {filename: text_content}
         self.results = []
 
         self.setup_styles()
-        self.create_interface()
+        self.build_layout()
 
     def setup_styles(self):
         self.style = ttk.Style()
-        
-        # Try preferred themes safely; fall back to available system themes
-        available_themes = self.style.theme_names()
-        for theme in ("clamp", "alt", "default", "classic"):
-            if theme in available_themes:
-                self.style.theme_use(theme)
+        for t in ("clamp", "alt", "default"):
+            if t in self.style.theme_names():
+                self.style.theme_use(t)
                 break
 
-        # Configure Treeview (Results Table)
+        # Treeview Dashboard Table
         self.style.configure(
-            "Treeview",
-            background=CARD_BG,
+            "Dashboard.Treeview",
+            background=BG_CARD,
             foreground=TEXT_MAIN,
-            fieldbackground=CARD_BG,
-            rowheight=38,
+            fieldbackground=BG_CARD,
+            rowheight=40,
             font=("Segoe UI", 10),
-            borderwidth=0
+            borderwidth=1,
+            relief="solid"
         )
-        self.style.map(
-            "Treeview",
-            background=[("selected", "#0284c7")],
-            foreground=[("selected", "#ffffff")]
-        )
+        self.style.map("Dashboard.Treeview", background=[("selected", "#e0e7ff")], foreground=[("selected", PRIMARY_VIOLET)])
 
-        # Configure Treeview Header
         self.style.configure(
-            "Treeview.Heading",
-            background="#0f172a",
-            foreground=ACCENT_BLUE,
-            font=("Segoe UI", 10, "bold"),
-            borderwidth=0,
+            "Dashboard.Treeview.Heading",
+            background="#f1f5f9",
+            foreground=TEXT_MAIN,
+            font=("Segoe UI", 9, "bold"),
             padding=8
         )
-        self.style.map("Treeview.Heading", background=[("active", CARD_BORDER)])
 
-    def create_card(self, parent, title_text):
-        """Helper to create dark card sections."""
-        card = tk.Frame(
-            parent,
-            bg=CARD_BG,
-            highlightbackground=CARD_BORDER,
-            highlightthickness=1,
-            padx=15,
-            pady=12
+    def build_layout(self):
+        # ----------------------------------------------------
+        # TOP NAVIGATION BAR
+        # ----------------------------------------------------
+        navbar = tk.Frame(self.root, bg=BG_SIDEBAR, height=60)
+        navbar.pack(side="top", fill="x")
+        navbar.pack_propagate(False)
+
+        # Brand / Logo
+        logo_frame = tk.Frame(navbar, bg=BG_SIDEBAR)
+        logo_frame.pack(side="left", padx=20)
+
+        badge = tk.Label(logo_frame, text="TS", font=("Segoe UI", 11, "bold"), bg=PRIMARY_VIOLET, fg="#ffffff", width=3, height=1)
+        badge.pack(side="left", padx=(0, 10))
+
+        title = tk.Label(logo_frame, text="TalentScreen Pro", font=("Segoe UI", 14, "bold"), bg=BG_SIDEBAR, fg="#ffffff")
+        title.pack(side="left")
+
+        subtitle = tk.Label(logo_frame, text="— Deterministic JD Engine", font=("Segoe UI", 9), bg=BG_SIDEBAR, fg="#94a3b8")
+        subtitle.pack(side="left", padx=(5, 0))
+
+        # Status Tag
+        status_pill = tk.Label(navbar, text="● NO EXTERNAL APIs", font=("Segoe UI", 8, "bold"), bg="#1e293b", fg=EMERALD_SUCCESS, padx=12, pady=4)
+        status_pill.pack(side="right", padx=20)
+
+        # ----------------------------------------------------
+        # MAIN SPLIT CANVAS
+        # ----------------------------------------------------
+        canvas = tk.Frame(self.root, bg=BG_CANVAS)
+        canvas.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # LEFT COLUMN (Job Description & Skill Cloud)
+        left_col = tk.Frame(canvas, bg=BG_CANVAS, width=580)
+        left_col.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        # Card 1: Job Description Input
+        jd_card = self.create_card(left_col, "1. TARGET JOB DESCRIPTION", "Paste requirements or pick a preset template")
+        jd_card.pack(fill="both", expand=True, pady=(0, 15))
+
+        # Preset Buttons
+        preset_bar = tk.Frame(jd_card, bg=BG_CARD)
+        preset_bar.pack(fill="x", pady=(0, 8))
+
+        for name, text in ROLE_PRESETS.items():
+            btn = tk.Button(
+                preset_bar, text=name, command=lambda t=text: self.load_preset(t),
+                bg="#f1f5f9", fg=TEXT_MAIN, activebackground="#e2e8f0", font=("Segoe UI", 8), relief="flat", padx=8, pady=3, cursor="hand2"
+            )
+            btn.pack(side="left", padx=(0, 5))
+
+        # Text Area
+        self.jd_text_box = tk.Text(
+            jd_card, wrap="word", font=("Consolas", 10), bg="#f8fafc", fg=TEXT_MAIN,
+            highlightbackground=BORDER_LIGHT, highlightthickness=1, relief="flat", padx=10, pady=10
         )
-        header = tk.Label(
-            card,
-            text=title_text,
-            font=("Segoe UI", 12, "bold"),
-            bg=CARD_BG,
-            fg=TEXT_MAIN
+        self.jd_text_box.pack(fill="both", expand=True)
+        self.jd_text_box.bind("<KeyRelease>", lambda e: self.update_skill_cloud())
+
+        # Card 2: Interactive Skill Cloud
+        cloud_card = self.create_card(left_col, "EXTRACTED SKILL MATRIX", "Detected automatically from Job Description above")
+        cloud_card.pack(fill="x")
+
+        self.cloud_frame = tk.Frame(cloud_card, bg=BG_CARD)
+        self.cloud_frame.pack(fill="x", pady=(5, 0))
+
+        self.cloud_empty_lbl = tk.Label(self.cloud_frame, text="Type or paste a job description above to parse skill tags...", font=("Segoe UI", 9, "italic"), bg=BG_CARD, fg=TEXT_MUTED)
+        self.cloud_empty_lbl.pack(anchor="w")
+
+        # RIGHT COLUMN (Candidate Queue & Action Panel)
+        right_col = tk.Frame(canvas, bg=BG_CANVAS, width=640)
+        right_col.pack(side="right", fill="both", expand=True, padx=(10, 0))
+
+        # Card 3: File Dropzone / Queue
+        queue_card = self.create_card(right_col, "2. CANDIDATE RESUMES", "Upload TXT, DOCX, PDF, or ZIP bundles")
+        queue_card.pack(fill="both", expand=True, pady=(0, 15))
+
+        drop_zone = tk.Frame(queue_card, bg="#f1f5f9", highlightbackground=PRIMARY_VIOLET, highlightthickness=1, padx=15, pady=12)
+        drop_zone.pack(fill="x", pady=(0, 10))
+
+        tk.Label(drop_zone, text="📁 Batch Resume Importer", font=("Segoe UI", 10, "bold"), bg="#f1f5f9", fg=TEXT_MAIN).pack(side="left")
+
+        browse_btn = tk.Button(
+            drop_zone, text="Browse Files / ZIP", command=self.browse_files,
+            bg=PRIMARY_VIOLET, fg="#ffffff", activebackground=PRIMARY_HOVER, activeforeground="#ffffff",
+            font=("Segoe UI", 9, "bold"), relief="flat", padx=14, pady=5, cursor="hand2"
         )
-        header.pack(anchor="w", pady=(0, 8))
-        return card
+        browse_btn.pack(side="right")
 
-    def create_interface(self):
-        # Header Banner
-        header_frame = tk.Frame(self.root, bg=BG_DARK)
-        header_frame.pack(fill="x", padx=20, pady=(15, 10))
-
-        title = tk.Label(
-            header_frame,
-            text="⚡ Resume Screening System",
-            font=("Segoe UI", 22, "bold"),
-            bg=BG_DARK,
-            fg=ACCENT_BLUE
+        # File Queue Listbox
+        self.file_listbox = tk.Listbox(
+            queue_card, font=("Consolas", 9), bg="#f8fafc", fg=TEXT_MAIN,
+            selectbackground=PRIMARY_VIOLET, selectforeground="#ffffff", relief="flat", highlightbackground=BORDER_LIGHT, highlightthickness=1
         )
-        title.pack(anchor="w")
-
-        subtitle = tk.Label(
-            header_frame,
-            text="Rule-based candidate match engine • Native Python Standard Library Execution",
-            font=("Segoe UI", 10),
-            bg=BG_DARK,
-            fg=TEXT_MUTED
-        )
-        subtitle.pack(anchor="w")
-
-        # Main Grid Layout Frame
-        main_grid = tk.Frame(self.root, bg=BG_DARK)
-        main_grid.pack(fill="both", expand=True, padx=20, pady=5)
-
-        # Left Panel (Job Description)
-        left_card = self.create_card(main_grid, "Job Description")
-        left_card.pack(side="left", fill="both", expand=True, padx=(0, 10))
-
-        self.jd_box = tk.Text(
-            left_card,
-            wrap="word",
-            font=("Consolas", 10),
-            bg=INPUT_BG,
-            fg=TEXT_MAIN,
-            insertbackground=TEXT_MAIN,
-            relief="flat",
-            highlightthickness=1,
-            highlightbackground=CARD_BORDER,
-            padx=10,
-            pady=10
-        )
-        self.jd_box.pack(fill="both", expand=True)
-
-        # Right Panel (File Input)
-        right_card = self.create_card(main_grid, "Selected Resumes")
-        right_card.pack(side="right", fill="both", expand=True, padx=(10, 0))
-
-        self.resume_list = tk.Listbox(
-            right_card,
-            font=("Segoe UI", 10),
-            bg=INPUT_BG,
-            fg=TEXT_MAIN,
-            selectbackground=ACCENT_BLUE,
-            selectforeground=BG_DARK,
-            relief="flat",
-            highlightthickness=1,
-            highlightbackground=CARD_BORDER,
-            activestyle="none"
-        )
-        self.resume_list.pack(fill="both", expand=True, pady=(0, 10))
-
-        btn_container = tk.Frame(right_card, bg=CARD_BG)
-        btn_container.pack(fill="x")
-
-        select_btn = tk.Button(
-            btn_container,
-            text="+ Add Resumes",
-            command=self.select_resumes,
-            bg="#2563eb",
-            fg="white",
-            activebackground="#1d4ed8",
-            activeforeground="white",
-            font=("Segoe UI", 9, "bold"),
-            relief="flat",
-            padx=15,
-            pady=8,
-            cursor="hand2"
-        )
-        select_btn.pack(side="left", padx=(0, 5))
+        self.file_listbox.pack(fill="both", expand=True, pady=(0, 8))
 
         clear_btn = tk.Button(
-            btn_container,
-            text="Clear",
-            command=self.clear_resumes,
-            bg=CARD_BORDER,
-            fg=TEXT_MAIN,
-            activebackground="#475569",
-            activeforeground="white",
-            font=("Segoe UI", 9),
-            relief="flat",
-            padx=15,
-            pady=8,
-            cursor="hand2"
+            queue_card, text="Clear Queue", command=self.clear_queue,
+            bg=BG_CARD, fg=ROSE_DANGER, font=("Segoe UI", 8, "bold"), relief="flat", cursor="hand2"
         )
-        clear_btn.pack(side="left")
+        clear_btn.pack(anchor="e")
 
-        # Action Bar (Analyze Button)
-        action_frame = tk.Frame(self.root, bg=BG_DARK)
-        action_frame.pack(fill="x", padx=20, pady=12)
-
-        analyze_btn = tk.Button(
-            action_frame,
-            text="ANALYZE CANDIDATES",
-            command=self.analyze,
-            bg=ACCENT_GREEN,
-            fg=BG_DARK,
-            activebackground="#16a34a",
-            activeforeground="white",
-            font=("Segoe UI", 11, "bold"),
-            relief="flat",
-            pady=10,
-            cursor="hand2"
+        # Execute Button
+        run_btn = tk.Button(
+            right_col, text="RUN EVALUATION ENGINE →", command=self.run_evaluation,
+            bg=EMERALD_SUCCESS, fg="#ffffff", activebackground="#059669", activeforeground="#ffffff",
+            font=("Segoe UI", 11, "bold"), relief="flat", pady=12, cursor="hand2"
         )
-        analyze_btn.pack(fill="x")
+        run_btn.pack(fill="x")
 
-        # Results Section Frame
-        results_card = self.create_card(self.root, "Screening Rankings (Double-click entry for breakdown)")
-        results_card.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+        # ----------------------------------------------------
+        # BOTTOM DASHBOARD PANEL (Results View)
+        # ----------------------------------------------------
+        self.results_card = self.create_card(self.root, "3. SCREENING MATRIX RESULTS", "Candidates matching 50%+ of required skills are marked SELECTED")
+        self.results_card.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        columns = ("Rank", "Candidate File", "Match Score", "Alignment Level")
-        self.tree = ttk.Treeview(results_card, columns=columns, show="headings", selectmode="browse")
+        cols = ("Rank", "Candidate Name", "Match %", "Skills Matched", "Status Decision")
+        self.tree = ttk.Treeview(self.results_card, columns=cols, show="headings", style="Dashboard.Treeview", height=6)
 
         self.tree.heading("Rank", text="RANK")
-        self.tree.heading("Candidate File", text="CANDIDATE FILE")
-        self.tree.heading("Match Score", text="MATCH SCORE")
-        self.tree.heading("Alignment Level", text="ALIGNMENT LEVEL")
+        self.tree.heading("Candidate Name", text="CANDIDATE FILE")
+        self.tree.heading("Match %", text="MATCH %")
+        self.tree.heading("Skills Matched", text="MATCHED / REQUIRED SKILLS")
+        self.tree.heading("Status Decision", text="DECISION")
 
-        self.tree.column("Rank", width=80, anchor="center")
-        self.tree.column("Candidate File", width=400, anchor="w")
-        self.tree.column("Match Score", width=150, anchor="center")
-        self.tree.column("Alignment Level", width=200, anchor="center")
+        self.tree.column("Rank", width=70, anchor="center")
+        self.tree.column("Candidate Name", width=320, anchor="w")
+        self.tree.column("Match %", width=110, anchor="center")
+        self.tree.column("Skills Matched", width=420, anchor="w")
+        self.tree.column("Status Decision", width=140, anchor="center")
 
         self.tree.pack(fill="both", expand=True, pady=(0, 10))
-        self.tree.bind("<Double-1>", self.show_details)
 
-        # Bottom Bar (Export Button)
-        bottom_bar = tk.Frame(results_card, bg=CARD_BG)
+        # Bottom Bar Export Button
+        bottom_bar = tk.Frame(self.results_card, bg=BG_CARD)
         bottom_bar.pack(fill="x")
 
         export_btn = tk.Button(
-            bottom_bar,
-            text="Export CSV Report",
-            command=self.export_results,
-            bg=ACCENT_PURPLE,
-            fg="white",
-            activebackground="#9333ea",
-            activeforeground="white",
-            font=("Segoe UI", 9, "bold"),
-            relief="flat",
-            padx=15,
-            pady=6,
-            cursor="hand2"
+            bottom_bar, text="Export CSV Matrix Report", command=self.export_csv,
+            bg=BG_SIDEBAR, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", padx=15, pady=6, cursor="hand2"
         )
         export_btn.pack(side="right")
 
-    def select_resumes(self):
+    def create_card(self, parent, title, desc):
+        card = tk.Frame(parent, bg=BG_CARD, highlightbackground=BORDER_LIGHT, highlightthickness=1, padx=15, pady=12)
+        
+        t_lbl = tk.Label(card, text=title, font=("Segoe UI", 10, "bold"), bg=BG_CARD, fg=TEXT_MAIN)
+        t_lbl.pack(anchor="w")
+
+        d_lbl = tk.Label(card, text=desc, font=("Segoe UI", 8), bg=BG_CARD, fg=TEXT_MUTED)
+        d_lbl.pack(anchor="w", pady=(0, 8))
+
+        return card
+
+    # ========================================================
+    # INTERACTIVE EVENTS & SKILL CLOUD
+    # ========================================================
+
+    def load_preset(self, text):
+        self.jd_text_box.delete("1.0", tk.END)
+        self.jd_text_box.insert(tk.END, text)
+        self.update_skill_cloud()
+
+    def update_skill_cloud(self):
+        # Clear existing skill pills
+        for widget in self.cloud_frame.winfo_children():
+            widget.destroy()
+
+        jd_text = self.jd_text_box.get("1.0", tk.END).strip()
+        skills = detect_skills(jd_text)
+
+        if not skills:
+            lbl = tk.Label(self.cloud_frame, text="Type or paste a job description above to parse skill tags...", font=("Segoe UI", 9, "italic"), bg=BG_CARD, fg=TEXT_MUTED)
+            lbl.pack(anchor="w")
+            return
+
+        # Render Pill Badges
+        row_frame = tk.Frame(self.cloud_frame, bg=BG_CARD)
+        row_frame.pack(fill="x", anchor="w")
+
+        for skill in skills:
+            pill = tk.Label(
+                row_frame, text=f"  {skill.upper()}  ", font=("Segoe UI", 8, "bold"),
+                bg=TAG_BG, fg=PRIMARY_VIOLET, padx=4, pady=2
+            )
+            pill.pack(side="left", padx=2, pady=2)
+
+    def browse_files(self):
         files = filedialog.askopenfilenames(
-            title="Select Resume Files",
-            filetypes=[("Supported Resumes", "*.txt *.docx *.pdf"), ("All Files", "*.*")]
+            title="Select Candidates or Archives",
+            filetypes=[("Supported Documents", "*.txt *.docx *.pdf *.zip"), ("ZIP Files", "*.zip"), ("Word Files", "*.docx"), ("PDF Files", "*.pdf"), ("Text Files", "*.txt")]
         )
-        if files:
-            self.resume_files = list(files)
-            self.resume_list.delete(0, tk.END)
-            for file in self.resume_files:
-                self.resume_list.insert(tk.END, f"  📄 {os.path.basename(file)}")
-
-    def clear_resumes(self):
-        self.resume_files = []
-        self.resume_list.delete(0, tk.END)
-        self.results = []
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-    def analyze(self):
-        self.jd_text = self.jd_box.get("1.0", tk.END).strip()
-
-        if not self.jd_text:
-            messagebox.showwarning("Input Required", "Please paste a Job Description first.")
+        if not files:
             return
 
-        if not self.resume_files:
-            messagebox.showwarning("Input Required", "Please select at least one candidate resume.")
+        for path in files:
+            ext = os.path.splitext(path)[1].lower()
+            if ext == ".zip":
+                try:
+                    with zipfile.ZipFile(path, "r") as z:
+                        for name in z.namelist():
+                            if name.startswith("__MACOSX") or name.endswith("/"):
+                                continue
+                            sub_ext = os.path.splitext(name)[1].lower()
+                            if sub_ext in (".txt", ".docx", ".pdf"):
+                                data = z.read(name)
+                                self.loaded_files[os.path.basename(name)] = parse_bytes(name, data)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to unzip: {e}")
+            else:
+                try:
+                    with open(path, "rb") as f:
+                        data = f.read()
+                    filename = os.path.basename(path)
+                    self.loaded_files[filename] = parse_bytes(filename, data)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to read file: {e}")
+
+        # Update Listbox View
+        self.file_listbox.delete(0, tk.END)
+        for fname in self.loaded_files.keys():
+            ext = os.path.splitext(fname)[1].upper()
+            self.file_listbox.insert(tk.END, f" [{ext[1:]}]  {fname}")
+
+    def clear_queue(self):
+        self.loaded_files.clear()
+        self.file_listbox.delete(0, tk.END)
+
+    # ========================================================
+    # EVALUATION ENGINE
+    # ========================================================
+
+    def run_evaluation(self):
+        jd_text = self.jd_text_box.get("1.0", tk.END).strip()
+
+        if not jd_text:
+            messagebox.showwarning("Input Needed", "Please provide a Job Description.")
             return
 
+        if not self.loaded_files:
+            messagebox.showwarning("Input Needed", "Please upload candidate resume files.")
+            return
+
+        jd_skills = set(detect_skills(jd_text))
+
         self.results = []
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        for filename, content in self.loaded_files.items():
+            res_skills = set(detect_skills(content))
+            matched = jd_skills & res_skills
+            missing = jd_skills - res_skills
 
-        for filename in self.resume_files:
-            resume_text = read_file(filename)
-            if resume_text.startswith("ERROR"):
-                continue
+            score = round((len(matched) / len(jd_skills)) * 100) if jd_skills else 0
+            decision = "SELECTED" if score >= 50 else "REJECTED"
 
-            result = calculate_match(self.jd_text, resume_text)
-            result["filename"] = filename
-            result["candidate"] = os.path.basename(filename)
-            result["recommendations"] = generate_recommendations(result)
-            self.results.append(result)
+            self.results.append({
+                "candidate": filename,
+                "score": score,
+                "matched": sorted(matched),
+                "missing": sorted(missing),
+                "total_required": len(jd_skills),
+                "decision": decision
+            })
 
         self.results.sort(key=lambda x: x["score"], reverse=True)
 
-        for idx, result in enumerate(self.results, start=1):
+        # Populate Results Treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        for idx, res in enumerate(self.results, start=1):
+            matched_str = ", ".join(res["matched"]) if res["matched"] else "None"
             self.tree.insert(
-                "",
-                tk.END,
+                "", tk.END,
                 values=(
                     f"#{idx}",
-                    result["candidate"],
-                    f"{result['score']}%",
-                    result["level"]
+                    res["candidate"],
+                    f"{res['score']}%",
+                    f"({len(res['matched'])}/{res['total_required']}) {matched_str}",
+                    res["decision"]
                 )
             )
 
-        if self.results:
-            messagebox.showinfo("Analysis Complete", f"Successfully evaluated {len(self.results)} candidate profile(s).")
-        else:
-            messagebox.showerror("Execution Error", "Failed to parse selected files.")
+        messagebox.showinfo("Analysis Complete", f"Evaluated {len(self.results)} candidate profile(s) successfully.")
 
-    def show_details(self, event):
-        selected = self.tree.selection()
-        if not selected:
-            return
-
-        item = self.tree.item(selected[0])
-        candidate_name = item["values"][1]
-
-        result = next((r for r in self.results if r["candidate"] == candidate_name), None)
-        if not result:
-            return
-
-        # Modern Pop-up Window
-        window = tk.Toplevel(self.root)
-        window.title(f"Evaluation Matrix — {candidate_name}")
-        window.geometry("720x600")
-        window.configure(bg=BG_DARK)
-
-        # Candidate Title Card
-        title_card = tk.Frame(window, bg=CARD_BG, padx=20, pady=15)
-        title_card.pack(fill="x", padx=15, pady=15)
-
-        tk.Label(
-            title_card, text=candidate_name,
-            font=("Segoe UI", 16, "bold"), bg=CARD_BG, fg=TEXT_MAIN
-        ).pack(anchor="w")
-
-        score_color = ACCENT_GREEN if result['score'] >= 70 else (ACCENT_BLUE if result['score'] >= 50 else ACCENT_RED)
-        tk.Label(
-            title_card, text=f"Overall Match: {result['score']}%  •  {result['level']}",
-            font=("Segoe UI", 11, "bold"), bg=CARD_BG, fg=score_color
-        ).pack(anchor="w", pady=(4, 0))
-
-        # Details Content Area
-        text_area = tk.Text(
-            window,
-            wrap="word",
-            font=("Consolas", 10),
-            bg=CARD_BG,
-            fg=TEXT_MAIN,
-            relief="flat",
-            padx=15,
-            pady=15
-        )
-        text_area.pack(fill="both", expand=True, padx=15, pady=(0, 15))
-
-        matched_skills = [f"  ✓ {s}" for s in result["matched_skills"]] or ["  None detected"]
-        missing_skills = [f"  ✗ {s}" for s in result["missing_skills"]] or ["  None detected"]
-        matched_keywords = [f"  ✓ {k}" for k in result["matched_keywords"]] or ["  None detected"]
-        recommendations = [f"  • {r}" for r in result["recommendations"]] or ["  None"]
-
-        report = [
-            "============================================================",
-            " MATCHED SKILLS",
-            "============================================================",
-            *matched_skills,
-            "",
-            "============================================================",
-            " MISSING SKILLS",
-            "============================================================",
-            *missing_skills,
-            "",
-            "============================================================",
-            " MATCHED KEYWORDS",
-            "============================================================",
-            *matched_keywords,
-            "",
-            "============================================================",
-            " RECOMMENDATIONS & NOTES",
-            "============================================================",
-            *recommendations
-        ]
-
-        text_area.insert(tk.END, "\n".join(report))
-        text_area.config(state="disabled")
-
-    def export_results(self):
+    def export_csv(self):
         if not self.results:
-            messagebox.showwarning("No Data", "Perform an analysis prior to exporting.")
+            messagebox.showwarning("No Data", "Run an evaluation prior to exporting.")
             return
 
-        filename = filedialog.asksaveasfilename(
-            title="Save CSV Report",
-            defaultextension=".csv",
-            filetypes=[("CSV Files", "*.csv")]
-        )
-
-        if not filename:
+        path = filedialog.asksaveasfilename(title="Save Matrix Report", defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
+        if not path:
             return
 
         try:
-            with open(filename, "w", newline="", encoding="utf-8") as file:
-                writer = csv.writer(file)
-                writer.writerow(["Rank", "Candidate", "Score", "Level", "Matched Skills", "Missing Skills"])
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Rank", "Candidate Name", "Match %", "Status Decision", "Matched Skills", "Missing Skills"])
                 for rank, res in enumerate(self.results, start=1):
                     writer.writerow([
-                        rank, res["candidate"], res["score"], res["level"],
-                        ", ".join(res["matched_skills"]), ", ".join(res["missing_skills"])
+                        rank, res["candidate"], f"{res['score']}%", res["decision"],
+                        ", ".join(res["matched"]), ", ".join(res["missing"])
                     ])
-            messagebox.showinfo("Export Successful", "Report exported successfully.")
-        except Exception as err:
-            messagebox.showerror("Export Error", str(err))
+            messagebox.showinfo("Saved", "CSV Matrix report generated successfully.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
 
 
-# PROGRAM ENTRY POINT
+# ENTRY POINT
 
 
 def main():
     root = tk.Tk()
-    app = ResumeAnalyzerApp(root)
+    app = ModernScreeningApp(root)
     root.mainloop()
 
 
